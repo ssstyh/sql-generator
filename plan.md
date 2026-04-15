@@ -1,52 +1,51 @@
-﻿# Implementation Plan: Phase 7 最终验收与后续排期
+﻿# Implementation Plan: Phase 10 最终演示与老板验收
 
 ## Objective
-在 Phase 6 收口已经完成的前提下，由项目经理输出最终验收口径、演示安排和后续排期建议，明确当前版本是否可以按阶段性交付通过验收。
+在 Phase 9 已确认 mock data 数据包通过快速复验的前提下，由项目经理完成最终演示安排、老板验收口径统一和项目阶段收口。
 
 ## Context
-- Triggered by: [员工/06_部署与文档工程师/Phase6部署与展示收口完成总结.md](/E:/sql-generator/员工/06_部署与文档工程师/Phase6部署与展示收口完成总结.md)
-- Related work: [员工/05_测试工程师_QA/Phase5快速复验完成总结.md](/E:/sql-generator/员工/05_测试工程师_QA/Phase5快速复验完成总结.md)、[docs/DEPLOYMENT.md](/E:/sql-generator/docs/DEPLOYMENT.md)、[docs/DEMO.md](/E:/sql-generator/docs/DEMO.md)、[docs/ROADMAP.md](/E:/sql-generator/docs/ROADMAP.md)
+- Triggered by: [员工/05_测试工程师_QA/Phase9模拟数据包快速复验完成总结.md](/E:/sql-generator/员工/05_测试工程师_QA/Phase9模拟数据包快速复验完成总结.md)
+- Related work: [docs/DEMO.md](/E:/sql-generator/docs/DEMO.md)、[docs/MOCK_DATA_GUIDE.md](/E:/sql-generator/docs/MOCK_DATA_GUIDE.md)、[README.md](/E:/sql-generator/README.md)
 - Current verification:
-  - `python -c "import app; print('app import ok')"` -> passed
-  - `python -m pytest` -> `36 passed`
-  - `python -m pytest tests/test_app_ui_regression.py -q` -> `7 passed`
-  - `.streamlit/config.toml` -> added
-  - `docs/DEPLOYMENT.md` / `docs/DEMO.md` / `LICENSE` -> added
+  - `python -m pytest` -> `39 passed`
+  - QA 已确认 mock data 数据包与当前三组示例参数一致
+  - 当前项目已具备老板演示与外部平台验证条件
 
 ## Open Questions
-- 当前应按“阶段性交付”还是“完整长期愿景”做老板验收
-- 漏斗分析、RFM 和真实部署结果应如何进入下一轮排期
-- 最终演示时应如何避免老板误解未完成功能已交付
+- 最终演示时应如何平衡“当前可交付范围”和“后续愿景”表达
+- 是否需要后续再补前端入口优化，还是直接以现有材料演示
+- 老板最终更关注阶段性交付还是长期平台化路线
 
 ## Affected Modules
 
 | Layer | Module | Change Type | Impact |
 |-------|--------|-------------|--------|
 | Docs | `plan.md` | Phase update | 当前执行依据 |
-| Docs | `README.md` | Acceptance wording | 验收口径明确 |
+| Docs | `README.md` | Progress update | 展示最新状态 |
 | Docs | `docs/ROADMAP.md` | Phase update | 路线图推进 |
+| Docs | `architecture.md` | Completion update | 架构进度同步 |
 | Session | `SESSION.md` | Handoff update | 交接清晰 |
 | PM | `员工/01_项目经理_产品负责人/项目完成总结.md` | Progress update | 项目总览同步 |
-| PM | `员工/01_项目经理_产品负责人/Phase7最终验收与后续排期总结.md` | New file | 最终收口结论 |
+| PM | `员工/01_项目经理_产品负责人/Phase10最终演示与老板验收任务书.md` | New file | 任务定义 |
+| PM | `员工/01_项目经理_产品负责人/Phase10最终演示与老板验收正式派工指令.md` | New file | 正式派工 |
 
 ## Verification
-- 当前测试基线继续通过
-- README、部署文档和演示文档口径一致
-- 项目经理在个人文件夹下提交 [Phase7最终验收与后续排期总结.md](/E:/sql-generator/员工/01_项目经理_产品负责人/Phase7最终验收与后续排期总结.md)
+- `python -m pytest` 当前为 `39 passed`
+- QA 已给出“通过”结论
+- 项目经理在个人文件夹下提交 [Phase10最终演示与老板验收完成总结.md](/E:/sql-generator/员工/01_项目经理_产品负责人/Phase10最终演示与老板验收完成总结.md)
 
 ## Risks & Unknowns
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| 老板将“阶段性交付”误解为“完整长期愿景全部完成” | Medium | High | 明确区分两层验收口径 |
-| 后续 backlog 未整理，导致项目虽然能验收但难以继续推进 | Medium | Medium | 输出下一轮优先级建议 |
-| 演示时误碰未完成功能造成误判 | Medium | Medium | 演示严格按 `docs/DEMO.md` 进行 |
+| 老板把阶段性交付误解为完整长期愿景全部完成 | Medium | High | 明确区分“已完成范围”与“后续排期” |
+| 真实数据库环境未本地实跑，老板误解为平台内执行能力已完成 | Medium | Medium | 明确 mock data 仅用于外部平台验证 |
+| 演示时过度展开技术细节，冲淡产品价值 | Medium | Low | 按项目经理统一话术收口 |
 
 ## Acceptance Criteria
-- Phase 6 交付被项目经理确认通过
-- 项目给出明确的最终验收口径
-- 项目能明确区分“当前可验收范围”与“后续排期范围”
-- 项目经理提交 `Phase7最终验收与后续排期总结.md`
+- 项目经理给出明确最终结论：`可阶段验收 / 仍需补项`
+- 老板可基于现有材料直接演示
+- 项目当前边界表达准确，不夸大未完成功能
 - 共享进度文档与当前阶段保持一致
 
 ## Estimation Summary

@@ -2,7 +2,7 @@
 
 ## Overview
 
-项目当前已经完成六个关键阶段：
+项目当前已经完成九个关键阶段：
 
 - Day 1：搭建 Streamlit 入口、生成器、校验器、格式化器和模板目录骨架
 - Day 2：落地趋势分析、同比环比、留存分析的真实 SQL 生成能力
@@ -11,8 +11,11 @@
 - Phase 4B：接入最小 GitHub Actions `pytest` CI，建立基础自动化门禁
 - Phase 5：QA 快速复验通过，确认当前主流程与已修复 P1 场景无回退
 - Phase 6：完成最小部署入口、部署说明、演示材料与仓库包装
+- Phase 7：完成阶段验收口径统一与后续排期判断
+- Phase 8：补齐 mock data 数据包、参考 SQL 与外部平台验证说明
+- Phase 9：QA 已确认 mock data 数据包与当前示例参数一致，并通过快速复验
 
-因此当前架构重点已经从“把链路搭起来”转为“在稳定交互闭环与最小自动化门禁之上完成阶段性交付收口，并进入最终验收与后续排期判断”。
+因此当前架构重点已经从“让 SQL 能生成并可验证”推进到“基于现有闭环完成最终演示与老板验收”。
 
 ## Layer Structure
 
@@ -26,6 +29,12 @@ Streamlit UI (app.py)
 CI Gate (.github/workflows/pytest.yml)
     -> app import smoke test
     -> python -m pytest
+Mock Validation Assets
+    -> mock_data/*.csv
+    -> mock_data/mysql/init.sql
+    -> mock_data/postgresql/init.sql
+    -> mock_data/reference_sql/*
+    -> docs/MOCK_DATA_GUIDE.md
 ```
 
 ## Module Responsibilities
@@ -34,9 +43,7 @@ CI Gate (.github/workflows/pytest.yml)
 
 - 统一承接页面表单、按钮交互、结果渲染、历史记录和错误提示
 - 所有 SQL 生成请求都通过 `SQLGenerator` 发起
-- 当前已修复的页面状态问题：
-  - 成功生成后历史记录即时可见
-  - 新一轮生成失败时，不再残留旧成功结果和旧 SQL
+- 当前三组 `EXAMPLES` 已作为 mock data 资产的唯一对齐基准
 
 ### `core/generator.py`
 
@@ -61,7 +68,7 @@ CI Gate (.github/workflows/pytest.yml)
 ### `core/db_connector.py`
 
 - 当前仍为配置读取占位模块
-- 本阶段不接真实数据库连接，保持架构边界清晰
+- 本阶段仍不接真实数据库连接，保持架构边界清晰
 
 ### `templates/`
 
@@ -77,13 +84,21 @@ CI Gate (.github/workflows/pytest.yml)
 - 在 `push` / `pull_request` 下触发
 - 负责安装依赖、做 `app import` 冒烟检查，并执行全量 `pytest`
 
+### `mock_data/`
+
+- 提供 `user_orders` 与 `user_events` 两张示例表数据
+- 提供 MySQL / PostgreSQL 初始化脚本
+- 提供参考 SQL 与外部平台验证说明
+- 目标是让页面示例 SQL 可以被老板或新手直接拿到外部平台验证
+
 ## Key Decisions
 
 - 保持单仓库、单入口的模块化单体结构
 - 统一通过 `SQLGenerator.generate()` 提供生成能力
 - 校验和格式化从模板层剥离
 - 页面层只负责交互，不直接读模板，也不复制校验逻辑
-- 最小 CI 先聚焦 `app import` 与 `pytest`，不在本轮扩展 lint、deploy 或 release
+- 最小 CI 先聚焦 `app import` 与 `pytest`
+- mock data 资产优先服务“外部平台验证”，而不是直接做平台内执行层
 
 ## Request Flow
 
@@ -94,6 +109,8 @@ CI Gate (.github/workflows/pytest.yml)
 5. 渲染结果交给 `SQLFormatter`
 6. UI 负责展示、复制、下载和历史记录
 7. `.github/workflows/pytest.yml` 对关键回归链路做持续门禁
+8. `mock_data/*` 与 `docs/MOCK_DATA_GUIDE.md` 为示例 SQL 提供外部平台验证闭环
+9. QA 已确认这套验证资产足以支撑老板演示与外部平台验证
 
 ## Current Scope Boundary
 
@@ -104,7 +121,9 @@ CI Gate (.github/workflows/pytest.yml)
 - 页面可输入、可生成、可展示、可复制下载
 - 两个 QA 识别的 P1 页面问题已修复
 - 最小 GitHub Actions `pytest` CI 已接入
-- 自动化测试已达到 `36 passed`
+- 自动化测试已达到 `39 passed`
+- mock data 数据包与外部平台验证说明已落地
+- 当前演示版已具备阶段性验收条件
 
 当前未完成：
 
@@ -112,9 +131,9 @@ CI Gate (.github/workflows/pytest.yml)
 - 真实数据库连接
 - 真实线上部署结果与线上 URL
 - 浏览器级 E2E 与完整发布流水线
+- 平台内直接执行 SQL 与结果展示层
 
 ## Next Steps
 
-- 项目经理基于现有材料安排最终演示与阶段验收
-- 项目经理整理漏斗分析与 RFM 的后续排期
-- 后续再推进漏斗分析与 RFM 能力
+- 由项目经理完成最终演示与老板验收收口
+- 根据老板结论，决定是当前阶段验收通过，还是继续进入下一轮扩展排期
