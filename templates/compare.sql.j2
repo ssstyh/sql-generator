@@ -1,0 +1,51 @@
+/*
+  分析主题: {{ analysis_label }}
+  analysis_type: {{ analysis_type }}
+  dialect: {{ dialect }}
+  generated_at: {{ generated_at }}
+{% for line in comment_lines %}
+  {{ line }}
+{% endfor %}
+*/
+WITH base_series AS (
+  SELECT
+    period_start,
+    {{ metric_expression }} AS metric_value
+  FROM (
+    SELECT
+      {{ period_expression }} AS period_start,
+      {{ metric_field }} AS metric_value_source
+    FROM {{ table_name }}
+    WHERE {{ where_clause }}
+  ) source_data
+  GROUP BY period_start
+)
+{% if comparison_type == "mom" %}
+, compared_series AS (
+  SELECT
+    period_start,
+    metric_value AS current_value,
+    LAG(metric_value) OVER (
+      ORDER BY period_start
+    ) AS previous_value
+  FROM base_series
+)
+SELECT
+  period_start,
+  current_value,
+  previous_value,
+  current_value - previous_value AS absolute_change,
+  ROUND((current_value - previous_value) * 1.0 / NULLIF(previous_value, 0), 4) AS change_rate
+FROM compared_series
+{% else %}
+SELECT
+  curr.period_start,
+  curr.metric_value AS current_value,
+  prev.metric_value AS previous_value,
+  curr.metric_value - prev.metric_value AS absolute_change,
+  ROUND((curr.metric_value - prev.metric_value) * 1.0 / NULLIF(prev.metric_value, 0), 4) AS change_rate
+FROM base_series curr
+LEFT JOIN base_series prev
+  ON curr.period_start = {{ yoy_previous_period_expression }}
+{% endif %}
+ORDER BY period_start;

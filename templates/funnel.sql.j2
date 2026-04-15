@@ -1,0 +1,15 @@
+/*
+  analysis_type: {{ analysis_type }}
+  dialect: {{ dialect }}
+  generated_at: {{ generated_at }}
+*/
+WITH funnel_events AS (
+  SELECT
+    {{ user_id_field }} AS user_id,
+    DATE({{ date_field }}) AS event_date
+  FROM {{ table_name }}
+)
+SELECT
+  '{{ steps[0] }}' AS first_step,
+  COUNT(DISTINCT user_id) AS user_count
+FROM funnel_events;

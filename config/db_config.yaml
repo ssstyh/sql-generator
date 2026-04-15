@@ -1,0 +1,22 @@
+default_profile: mysql
+
+profiles:
+  mysql:
+    dialect: mysql
+    host: localhost
+    port: 3306
+    database: analytics
+    username: root
+    password: change_me
+    options:
+      charset: utf8mb4
+
+  postgresql:
+    dialect: postgresql
+    host: localhost
+    port: 5432
+    database: analytics
+    username: postgres
+    password: change_me
+    options:
+      sslmode: prefer

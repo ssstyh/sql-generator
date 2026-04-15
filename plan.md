@@ -1,76 +1,60 @@
-# Implementation Plan: Day 1 项目启动与骨架搭建
+﻿# Implementation Plan: Phase 7 最终验收与后续排期
 
 ## Objective
-在不扩大范围的前提下，先把 `SQL 分析模板生成器` 的 MVP 边界、Day 1 交付物和技术落地入口定义清楚，让团队能够从“项目说明”直接进入“可执行开发”。
+在 Phase 6 收口已经完成的前提下，由项目经理输出最终验收口径、演示安排和后续排期建议，明确当前版本是否可以按阶段性交付通过验收。
 
 ## Context
-- Triggered by: 仓库内现有的 [项目概述.md](/E:/sql-generator/项目概述.md)、[skills分配清单.md](/E:/sql-generator/skills分配清单.md)、[员工/人员配置总览.md](/E:/sql-generator/员工/人员配置总览.md)
-- Related work: Day 1 的核心目标是完成项目初始化，形成一个可运行的 Streamlit 最小骨架，并为 Day 2 到 Day 10 保留稳定扩展路径
+- Triggered by: [员工/06_部署与文档工程师/Phase6部署与展示收口完成总结.md](/E:/sql-generator/员工/06_部署与文档工程师/Phase6部署与展示收口完成总结.md)
+- Related work: [员工/05_测试工程师_QA/Phase5快速复验完成总结.md](/E:/sql-generator/员工/05_测试工程师_QA/Phase5快速复验完成总结.md)、[docs/DEPLOYMENT.md](/E:/sql-generator/docs/DEPLOYMENT.md)、[docs/DEMO.md](/E:/sql-generator/docs/DEMO.md)、[docs/ROADMAP.md](/E:/sql-generator/docs/ROADMAP.md)
+- Current verification:
+  - `python -c "import app; print('app import ok')"` -> passed
+  - `python -m pytest` -> `36 passed`
+  - `python -m pytest tests/test_app_ui_regression.py -q` -> `7 passed`
+  - `.streamlit/config.toml` -> added
+  - `docs/DEPLOYMENT.md` / `docs/DEMO.md` / `LICENSE` -> added
 
 ## Open Questions
-- 漏斗分析是否只支持单表事件流，还是要在 MVP 内支持多表步骤输入
-- `db_connector.py` 在 MVP 中是否只提供配置模板，还是要接入真实数据库探测
-- SQL 标识符转义是否统一抽象成方言层能力，还是先在模板中局部处理
-- Demo 模式的数据来源是静态示例参数，还是内置样例数据集
+- 当前应按“阶段性交付”还是“完整长期愿景”做老板验收
+- 漏斗分析、RFM 和真实部署结果应如何进入下一轮排期
+- 最终演示时应如何避免老板误解未完成功能已交付
 
 ## Affected Modules
 
 | Layer | Module | Change Type | Impact |
 |-------|--------|-------------|--------|
-| App | `app.py` | 新建 Streamlit 入口 | Day 1 可运行页面 |
-| Config | `requirements.txt` | 新建依赖清单 | 本地启动与部署基础 |
-| Config | `config/db_config.yaml` | 新建配置模板 | 数据源接入预留 |
-| Backend | `core/__init__.py` | 新建包初始化 | 目录结构稳定 |
-| Backend | `core/generator.py` | 新建生成器入口 | 后续 SQL 模板统一接入点 |
-| Backend | `core/validator.py` | 新建校验入口 | 输入合法性控制 |
-| Backend | `core/db_connector.py` | 新建数据库连接占位 | 后续扩展能力 |
-| Utils | `utils/__init__.py` | 新建包初始化 | 工具层组织 |
-| Utils | `utils/formatter.py` | 新建 SQL 格式化入口 | 输出一致性 |
-| Templates | `templates/trend.sql.j2` | 新建模板占位 | 趋势分析扩展入口 |
-| Templates | `templates/compare.sql.j2` | 新建模板占位 | 同比环比扩展入口 |
-| Templates | `templates/retention.sql.j2` | 新建模板占位 | 留存分析扩展入口 |
-| Templates | `templates/funnel.sql.j2` | 新建模板占位 | 漏斗分析扩展入口 |
-| Templates | `templates/rfm.sql.j2` | 新建模板占位 | RFM 分析扩展入口 |
-| Tests | `tests/test_generator.py` | 新建基础测试 | 生成器主流程回归 |
-| Tests | `tests/test_validator.py` | 新建基础测试 | 校验逻辑回归 |
-| Docs | `README.md` | 更新启动说明 | 对外理解与使用入口 |
+| Docs | `plan.md` | Phase update | 当前执行依据 |
+| Docs | `README.md` | Acceptance wording | 验收口径明确 |
+| Docs | `docs/ROADMAP.md` | Phase update | 路线图推进 |
+| Session | `SESSION.md` | Handoff update | 交接清晰 |
+| PM | `员工/01_项目经理_产品负责人/项目完成总结.md` | Progress update | 项目总览同步 |
+| PM | `员工/01_项目经理_产品负责人/Phase7最终验收与后续排期总结.md` | New file | 最终收口结论 |
 
 ## Verification
-集成验证：
-- 执行 `pip install -r requirements.txt`
-- 执行 `streamlit run app.py`
-- 浏览器中可打开页面并看到标题“SQL 分析模板生成器”
-
-手工冒烟：
-- 根目录结构与项目概述中的 Day 1 目标一致
-- 依赖文件中至少包含 `streamlit`、`jinja2`、`sqlparse`、`pyyaml`、`pyperclip`
-- 代码层已预留 `core/`、`templates/`、`utils/`、`tests/` 四类职责边界
-
-回归要求：
-- 新增文件命名清晰且可被后续员工直接复用
-- 不引入与 Day 1 无关的业务复杂度
+- 当前测试基线继续通过
+- README、部署文档和演示文档口径一致
+- 项目经理在个人文件夹下提交 [Phase7最终验收与后续排期总结.md](/E:/sql-generator/员工/01_项目经理_产品负责人/Phase7最终验收与后续排期总结.md)
 
 ## Risks & Unknowns
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| Day 1 就把生成器细节做得过深，导致范围失控 | Medium | High | 严格限定为骨架、接口与占位，不提前展开 Day 2 以后逻辑 |
-| 目录结构命名不统一，后续多人协作成本升高 | Medium | High | 由技术负责人统一模块职责与命名规范 |
-| README 与实际结构不一致，后续交接混乱 | Medium | Medium | Day 1 同步更新 README，后续改动以 README 和路线图双向校验 |
-| 漏斗、RFM、Demo 模式的边界未提前说明，后续返工 | Medium | Medium | 将其列为开放问题，由项目经理在 Day 2 前确认口径 |
+| 老板将“阶段性交付”误解为“完整长期愿景全部完成” | Medium | High | 明确区分两层验收口径 |
+| 后续 backlog 未整理，导致项目虽然能验收但难以继续推进 | Medium | Medium | 输出下一轮优先级建议 |
+| 演示时误碰未完成功能造成误判 | Medium | Medium | 演示严格按 `docs/DEMO.md` 进行 |
 
 ## Acceptance Criteria
-- 项目范围被明确锁定为 10 天 MVP，不额外扩展非核心功能
-- Day 1 交付物、负责人、验收口径可直接执行
-- 技术负责人拿到文档后可以不再反复追问目录、模块和接口边界
-- 后续员工能够基于统一的骨架进入 SQL 模板开发、前端开发和测试工作
+- Phase 6 交付被项目经理确认通过
+- 项目给出明确的最终验收口径
+- 项目能明确区分“当前可验收范围”与“后续排期范围”
+- 项目经理提交 `Phase7最终验收与后续排期总结.md`
+- 共享进度文档与当前阶段保持一致
 
 ## Estimation Summary
 
 | Metric | Value |
 |--------|-------|
-| Total backend modules affected | 6 |
-| Total frontend modules affected | 1 |
+| Total backend modules affected | 0 |
+| Total frontend modules affected | 0 |
 | Migration required | No |
 | API changes | No |
 | Overall complexity | small |

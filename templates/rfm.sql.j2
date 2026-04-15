@@ -1,0 +1,19 @@
+/*
+  analysis_type: {{ analysis_type }}
+  dialect: {{ dialect }}
+  generated_at: {{ generated_at }}
+*/
+WITH customer_orders AS (
+  SELECT
+    {{ user_id_field }} AS user_id,
+    DATE({{ date_field }}) AS order_date,
+    {{ amount_field }} AS order_amount
+  FROM {{ table_name }}
+)
+SELECT
+  user_id,
+  MAX(order_date) AS last_order_date,
+  COUNT(*) AS order_frequency,
+  SUM(order_amount) AS monetary_value
+FROM customer_orders
+GROUP BY user_id;

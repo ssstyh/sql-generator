@@ -1,0 +1,28 @@
+/*
+  分析主题: {{ analysis_label }}
+  analysis_type: {{ analysis_type }}
+  dialect: {{ dialect }}
+  generated_at: {{ generated_at }}
+{% for line in comment_lines %}
+  {{ line }}
+{% endfor %}
+*/
+WITH source_data AS (
+  SELECT
+    {{ period_expression }} AS period_start,
+    {{ metric_field }} AS metric_value_source
+  FROM {{ table_name }}
+  WHERE {{ where_clause }}
+),
+base_series AS (
+  SELECT
+    period_start,
+    {{ metric_expression }} AS metric_value
+  FROM source_data
+  GROUP BY period_start
+)
+SELECT
+  period_start,
+  metric_value
+FROM base_series
+ORDER BY period_start;

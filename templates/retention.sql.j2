@@ -1,0 +1,86 @@
+/*
+  分析主题: {{ analysis_label }}
+  analysis_type: {{ analysis_type }}
+  dialect: {{ dialect }}
+  generated_at: {{ generated_at }}
+{% for line in comment_lines %}
+  {{ line }}
+{% endfor %}
+*/
+WITH filtered_events AS (
+  SELECT DISTINCT
+    {{ user_id_field }} AS user_id,
+    {{ activity_date_expression }} AS activity_date
+  FROM {{ table_name }}
+  WHERE {{ where_clause }}
+),
+first_activity AS (
+  SELECT
+    user_id,
+    MIN(activity_date) AS cohort_date
+  FROM filtered_events
+  GROUP BY user_id
+),
+cohort_retention AS (
+  SELECT
+    fa.cohort_date,
+    fa.user_id,
+{% for day in retention_days %}
+    MAX(
+      CASE
+        WHEN fe.activity_date = {{ retention_day_expressions[day] }} THEN 1
+        ELSE 0
+      END
+    ) AS day_{{ day }}_retained{% if not loop.last %},{% endif %}
+{% endfor %}
+  FROM first_activity fa
+  LEFT JOIN filtered_events fe
+    ON fe.user_id = fa.user_id
+   AND fe.activity_date >= fa.cohort_date
+   AND fe.activity_date <= {{ max_retention_date_expression }}
+  GROUP BY
+    fa.cohort_date,
+    fa.user_id
+),
+cohort_summary AS (
+  SELECT
+    cohort_date,
+    COUNT(*) AS cohort_size,
+{% for day in retention_days %}
+    SUM(day_{{ day }}_retained) AS day_{{ day }}_users,
+    ROUND(SUM(day_{{ day }}_retained) * 1.0 / NULLIF(COUNT(*), 0), 4) AS day_{{ day }}_rate{% if not loop.last %},{% endif %}
+{% endfor %}
+  FROM cohort_retention
+  GROUP BY cohort_date
+)
+SELECT
+{% if retention_mode == "table" %}
+  cohort_date,
+  cohort_size,
+{% for day in retention_days %}
+  day_{{ day }}_users,
+  day_{{ day }}_rate{% if not loop.last %},{% endif %}
+{% endfor %}
+FROM cohort_summary
+ORDER BY cohort_date;
+{% else %}
+  cohort_date,
+  retention_day,
+  cohort_size,
+  retained_users,
+  retention_rate
+FROM (
+{% for day in retention_days %}
+  SELECT
+    cohort_date,
+    {{ day }} AS retention_day,
+    cohort_size,
+    day_{{ day }}_users AS retained_users,
+    day_{{ day }}_rate AS retention_rate
+  FROM cohort_summary{% if not loop.last %}
+  UNION ALL
+{% endif %}
+{% endfor %}
+) curve_points
+ORDER BY cohort_date, retention_day;
+{% endif %}
