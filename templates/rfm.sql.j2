@@ -1,19 +1,50 @@
 /*
+  analysis_label: {{ analysis_label }}
   analysis_type: {{ analysis_type }}
   dialect: {{ dialect }}
   generated_at: {{ generated_at }}
+{% for line in comment_lines %}
+  {{ line }}
+{% endfor %}
 */
-WITH customer_orders AS (
+WITH filtered_orders AS (
   SELECT
     {{ user_id_field }} AS user_id,
-    DATE({{ date_field }}) AS order_date,
+    {{ activity_date_expression }} AS order_date,
     {{ amount_field }} AS order_amount
   FROM {{ table_name }}
+  WHERE {{ where_clause }}
+),
+user_metrics AS (
+  SELECT
+    user_id,
+    {{ recency_expression }} AS recency_days,
+    COUNT(*) AS frequency_value,
+    ROUND(SUM(order_amount), 2) AS monetary_value
+  FROM filtered_orders
+  GROUP BY user_id
+),
+scored_metrics AS (
+  SELECT
+    user_id,
+    recency_days,
+    frequency_value,
+    monetary_value,
+    {{ r_score_expression }} AS r_score,
+    {{ f_score_expression }} AS f_score,
+    {{ m_score_expression }} AS m_score
+  FROM user_metrics
 )
 SELECT
   user_id,
-  MAX(order_date) AS last_order_date,
-  COUNT(*) AS order_frequency,
-  SUM(order_amount) AS monetary_value
-FROM customer_orders
-GROUP BY user_id;
+  {{ analysis_date_literal }} AS analysis_date,
+  recency_days,
+  frequency_value,
+  monetary_value,
+  r_score,
+  f_score,
+  m_score,
+  {{ rfm_score_expression }} AS rfm_score,
+  {{ segment_case_sql }} AS segment_label
+FROM scored_metrics
+ORDER BY r_score DESC, f_score DESC, m_score DESC, user_id;

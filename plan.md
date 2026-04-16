@@ -1,52 +1,54 @@
-﻿# Implementation Plan: Phase 10 最终演示与老板验收
+﻿# Implementation Plan: Phase 14 完整版本最终验收与收口
 
 ## Objective
-在 Phase 9 已确认 mock data 数据包通过快速复验的前提下，由项目经理完成最终演示安排、老板验收口径统一和项目阶段收口。
+在 QA 已确认完整版本功能复验通过的前提下，由项目经理统一输出完整版本的最终验收结论、老板演示口径和后续优化待办，完成本轮项目收口。
 
 ## Context
-- Triggered by: [员工/05_测试工程师_QA/Phase9模拟数据包快速复验完成总结.md](/E:/sql-generator/员工/05_测试工程师_QA/Phase9模拟数据包快速复验完成总结.md)
-- Related work: [docs/DEMO.md](/E:/sql-generator/docs/DEMO.md)、[docs/MOCK_DATA_GUIDE.md](/E:/sql-generator/docs/MOCK_DATA_GUIDE.md)、[README.md](/E:/sql-generator/README.md)
+- Triggered by: [员工/05_测试工程师_QA/Phase13完整版本功能复验完成总结.md](/E:/sql-generator/员工/05_测试工程师_QA/Phase13完整版本功能复验完成总结.md)
+- Related work: [app.py](/E:/sql-generator/app.py)、[README.md](/E:/sql-generator/README.md)、[docs/ROADMAP.md](/E:/sql-generator/docs/ROADMAP.md)、[architecture.md](/E:/sql-generator/architecture.md)
 - Current verification:
-  - `python -m pytest` -> `39 passed`
-  - QA 已确认 mock data 数据包与当前三组示例参数一致
-  - 当前项目已具备老板演示与外部平台验证条件
+  - `python -m pytest` -> `46 passed`
+  - `python -c "import app; print('app import ok')"` -> `app import ok`
+  - QA 结论：完整版本功能复验通过
+  - 非阻塞问题：`app.py:737-738` 侧边栏“本轮范围”文案仍停留在旧口径
 
 ## Open Questions
-- 最终演示时应如何平衡“当前可交付范围”和“后续愿景”表达
-- 是否需要后续再补前端入口优化，还是直接以现有材料演示
-- 老板最终更关注阶段性交付还是长期平台化路线
+- 是否需要把侧边栏旧文案作为验收后优化待办单独安排
+- 漏斗 / RFM 的 mock data 验证包是否进入后续增强阶段
+- 后续是否继续推进真实数据库连接与平台内执行能力
 
 ## Affected Modules
 
 | Layer | Module | Change Type | Impact |
 |-------|--------|-------------|--------|
 | Docs | `plan.md` | Phase update | 当前执行依据 |
-| Docs | `README.md` | Progress update | 展示最新状态 |
+| Docs | `README.md` | Status update | 对外口径同步 |
 | Docs | `docs/ROADMAP.md` | Phase update | 路线图推进 |
-| Docs | `architecture.md` | Completion update | 架构进度同步 |
-| Session | `SESSION.md` | Handoff update | 交接清晰 |
+| Docs | `architecture.md` | Status update | 架构状态同步 |
+| Session | `SESSION.md` | Handoff update | 最终交接清晰 |
 | PM | `员工/01_项目经理_产品负责人/项目完成总结.md` | Progress update | 项目总览同步 |
-| PM | `员工/01_项目经理_产品负责人/Phase10最终演示与老板验收任务书.md` | New file | 任务定义 |
-| PM | `员工/01_项目经理_产品负责人/Phase10最终演示与老板验收正式派工指令.md` | New file | 正式派工 |
+| PM | `员工/01_项目经理_产品负责人/Phase14完整版本最终验收与收口任务书.md` | New file | 任务定义 |
+| PM | `员工/01_项目经理_产品负责人/Phase14完整版本最终验收与收口正式派工指令.md` | New file | 正式派工 |
 
 ## Verification
-- `python -m pytest` 当前为 `39 passed`
-- QA 已给出“通过”结论
-- 项目经理在个人文件夹下提交 [Phase10最终演示与老板验收完成总结.md](/E:/sql-generator/员工/01_项目经理_产品负责人/Phase10最终演示与老板验收完成总结.md)
+- 保持 `46 passed` 测试基线不回退
+- 保持 `app import ok` 冒烟检查通过
+- 共享文档统一切到“完整版本可阶段验收”口径
+- 项目经理在个人文件夹下提交 `Phase14完整版本最终验收与收口完成总结.md`
 
 ## Risks & Unknowns
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
-| 老板把阶段性交付误解为完整长期愿景全部完成 | Medium | High | 明确区分“已完成范围”与“后续排期” |
-| 真实数据库环境未本地实跑，老板误解为平台内执行能力已完成 | Medium | Medium | 明确 mock data 仅用于外部平台验证 |
-| 演示时过度展开技术细节，冲淡产品价值 | Medium | Low | 按项目经理统一话术收口 |
+| 老板把“完整版本可阶段验收”误解为“所有长期能力都已完成” | Medium | Medium | 在 README 与总结里明确当前边界 |
+| 非阻塞 P2 文案问题在演示时造成口径混乱 | Medium | Low | 标记为验收后优化待办，单独说明 |
+| 团队把当前完成状态误解为已包含真实数据库接入和平台内执行 | Medium | Medium | 在最终结论中继续保留范围说明 |
 
 ## Acceptance Criteria
-- 项目经理给出明确最终结论：`可阶段验收 / 仍需补项`
-- 老板可基于现有材料直接演示
-- 项目当前边界表达准确，不夸大未完成功能
-- 共享进度文档与当前阶段保持一致
+- 项目经理给出完整版本可阶段验收的明确结论
+- README / ROADMAP / SESSION / architecture / 项目完成总结口径一致
+- 下一位执行人切回项目经理自身做最终收口
+- 非阻塞 P2 被记录为后续优化项，不影响当前验收
 
 ## Estimation Summary
 

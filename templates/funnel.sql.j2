@@ -1,15 +1,67 @@
 /*
+  analysis_label: {{ analysis_label }}
   analysis_type: {{ analysis_type }}
   dialect: {{ dialect }}
   generated_at: {{ generated_at }}
+{% for line in comment_lines %}
+  {{ line }}
+{% endfor %}
 */
-WITH funnel_events AS (
+WITH
+{% for step in funnel_steps %}
+{{ step.source_cte_name }} AS (
   SELECT
-    {{ user_id_field }} AS user_id,
-    DATE({{ date_field }}) AS event_date
-  FROM {{ table_name }}
+    {{ step.user_id_field }} AS user_id,
+    {{ step.date_field }} AS event_time
+  FROM {{ step.table_name }}
+  WHERE {{ step.where_clause }}
+),
+{{ step.result_cte_name }} AS (
+{% if step.previous_result_cte_name %}
+  SELECT
+    curr.user_id,
+    MIN(curr.event_time) AS step_time
+  FROM {{ step.source_cte_name }} curr
+  INNER JOIN {{ step.previous_result_cte_name }} prev
+    ON curr.user_id = prev.user_id
+   AND curr.event_time >= prev.step_time
+   AND curr.event_time <= {{ step.window_end_expression }}
+  GROUP BY curr.user_id
+{% else %}
+  SELECT
+    user_id,
+    MIN(event_time) AS step_time
+  FROM {{ step.source_cte_name }}
+  GROUP BY user_id
+{% endif %}
+){% if not loop.last %},
+{% endif %}
+{% endfor %},
+step_counts AS (
+{% for step in funnel_steps %}
+  SELECT
+    {{ step.step_order }} AS step_order,
+    {{ step.step_name_literal }} AS step_name,
+    COUNT(DISTINCT user_id) AS user_count
+  FROM {{ step.result_cte_name }}{% if not loop.last %}
+  UNION ALL
+{% endif %}
+{% endfor %}
 )
 SELECT
-  '{{ steps[0] }}' AS first_step,
-  COUNT(DISTINCT user_id) AS user_count
-FROM funnel_events;
+  step_order,
+  step_name,
+  user_count,
+  CASE
+    WHEN step_order = 1 THEN 1.0
+    ELSE ROUND(
+      user_count * 1.0 / NULLIF(LAG(user_count) OVER (ORDER BY step_order), 0),
+      4
+    )
+  END AS conversion_rate,
+  ROUND(
+    user_count * 1.0 / NULLIF(FIRST_VALUE(user_count) OVER (ORDER BY step_order), 0),
+    4
+  ) AS overall_conversion_rate
+FROM step_counts
+ORDER BY step_order;

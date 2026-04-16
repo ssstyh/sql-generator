@@ -2,7 +2,7 @@
 
 ## Overview
 
-项目当前已经完成九个关键阶段：
+项目当前已经完成完整版本的核心交付闭环：
 
 - Day 1：搭建 Streamlit 入口、生成器、校验器、格式化器和模板目录骨架
 - Day 2：落地趋势分析、同比环比、留存分析的真实 SQL 生成能力
@@ -14,8 +14,11 @@
 - Phase 7：完成阶段验收口径统一与后续排期判断
 - Phase 8：补齐 mock data 数据包、参考 SQL 与外部平台验证说明
 - Phase 9：QA 已确认 mock data 数据包与当前示例参数一致，并通过快速复验
+- Phase 11：SQL 工程师已补齐漏斗与 RFM 的核心 SQL 模板、校验与测试
+- Phase 12：前端已把漏斗与 RFM 接到页面主链路
+- Phase 13：QA 已确认完整版本五类分析主链路通过，完整版本具备阶段验收条件
 
-因此当前架构重点已经从“让 SQL 能生成并可验证”推进到“基于现有闭环完成最终演示与老板验收”。
+当前架构已经进入最终收口阶段。也就是说，五类分析在代码和页面层都已经具备真实生成链路，当前剩余工作主要是统一最终验收口径与整理后续增强待办。
 
 ## Layer Structure
 
@@ -35,6 +38,10 @@ Mock Validation Assets
     -> mock_data/postgresql/init.sql
     -> mock_data/reference_sql/*
     -> docs/MOCK_DATA_GUIDE.md
+Full-Version Analysis Layer
+    -> templates/funnel.sql.j2
+    -> templates/rfm.sql.j2
+    -> app.py funnel/rfm form + result rendering
 ```
 
 ## Module Responsibilities
@@ -42,63 +49,38 @@ Mock Validation Assets
 ### `app.py`
 
 - 统一承接页面表单、按钮交互、结果渲染、历史记录和错误提示
-- 所有 SQL 生成请求都通过 `SQLGenerator` 发起
-- 当前三组 `EXAMPLES` 已作为 mock data 资产的唯一对齐基准
+- 当前已开放：趋势 / 对比 / 留存 / 漏斗 / RFM
+- 仍有 1 个非阻塞 P2 文案口径待后续顺手修正，不影响当前功能验收
 
 ### `core/generator.py`
 
-- 作为统一生成入口，负责：
-  - 分析类型与模板文件映射
-  - 调用 `InputValidator`
-  - 加载 `templates/*.sql.j2`
-  - 注入公共上下文
-  - 调用 `SQLFormatter`
+- 已统一支持五类分析的生成入口
+- 页面层不应复制核心 SQL 逻辑，只负责正确传参与渲染结果
 
 ### `core/validator.py`
 
-- 负责输入合法性校验
-- 当前已覆盖趋势、对比、留存所需的关键参数约束
-- 后续漏斗和 RFM 接入时，应继续在这里补充校验规则
-
-### `utils/formatter.py`
-
-- 负责 SQL 输出格式统一
-- 避免模板层和 UI 层直接处理格式化细节
-
-### `core/db_connector.py`
-
-- 当前仍为配置读取占位模块
-- 本阶段仍不接真实数据库连接，保持架构边界清晰
+- 已覆盖五类分析所需关键校验
+- funnel / rfm 的输入模型已固定为当前最小可用版本
 
 ### `templates/`
 
 - `trend.sql.j2`
 - `compare.sql.j2`
 - `retention.sql.j2`
-- `funnel.sql.j2`：待后续实现
-- `rfm.sql.j2`：待后续实现
-
-### `.github/workflows/pytest.yml`
-
-- 当前最小 CI 门禁文件
-- 在 `push` / `pull_request` 下触发
-- 负责安装依赖、做 `app import` 冒烟检查，并执行全量 `pytest`
+- `funnel.sql.j2`
+- `rfm.sql.j2`
 
 ### `mock_data/`
 
-- 提供 `user_orders` 与 `user_events` 两张示例表数据
-- 提供 MySQL / PostgreSQL 初始化脚本
-- 提供参考 SQL 与外部平台验证说明
-- 目标是让页面示例 SQL 可以被老板或新手直接拿到外部平台验证
+- 当前主要服务趋势 / 对比 / 留存的外部平台验证
+- 尚未扩展到漏斗 / RFM
 
 ## Key Decisions
 
-- 保持单仓库、单入口的模块化单体结构
-- 统一通过 `SQLGenerator.generate()` 提供生成能力
-- 校验和格式化从模板层剥离
-- 页面层只负责交互，不直接读模板，也不复制校验逻辑
-- 最小 CI 先聚焦 `app import` 与 `pytest`
-- mock data 资产优先服务“外部平台验证”，而不是直接做平台内执行层
+- 演示版能力维持可验收状态
+- 完整版本现在也已达到阶段验收条件
+- 非阻塞 P2 文案问题不作为当前版本阻塞项
+- 真实数据库连接与平台内执行层继续留在后续增强阶段，不并入本轮验收
 
 ## Request Flow
 
@@ -109,25 +91,22 @@ Mock Validation Assets
 5. 渲染结果交给 `SQLFormatter`
 6. UI 负责展示、复制、下载和历史记录
 7. `.github/workflows/pytest.yml` 对关键回归链路做持续门禁
-8. `mock_data/*` 与 `docs/MOCK_DATA_GUIDE.md` 为示例 SQL 提供外部平台验证闭环
-9. QA 已确认这套验证资产足以支撑老板演示与外部平台验证
+8. mock data 资产支撑部分示例 SQL 的外部平台验证
 
 ## Current Scope Boundary
 
 当前已完成：
 
-- 项目结构稳定
-- 趋势 / 对比 / 留存 SQL 可生成
-- 页面可输入、可生成、可展示、可复制下载
-- 两个 QA 识别的 P1 页面问题已修复
-- 最小 GitHub Actions `pytest` CI 已接入
-- 自动化测试已达到 `39 passed`
-- mock data 数据包与外部平台验证说明已落地
-- 当前演示版已具备阶段性验收条件
+- 五类分析的后端核心 SQL 能力
+- 五类分析的页面入口与生成链路
+- 历史记录、结果展示、最小 CI 门禁
+- mock data 数据包与外部平台验证说明
+- 自动化测试已达到 `46 passed`
+- 演示版与完整版本都具备阶段性验收条件
 
-当前未完成：
+当前仍未完成：
 
-- 漏斗分析与 RFM 真模板
+- 漏斗 / RFM 的 mock data 验证包
 - 真实数据库连接
 - 真实线上部署结果与线上 URL
 - 浏览器级 E2E 与完整发布流水线
@@ -135,5 +114,6 @@ Mock Validation Assets
 
 ## Next Steps
 
-- 由项目经理完成最终演示与老板验收收口
-- 根据老板结论，决定是当前阶段验收通过，还是继续进入下一轮扩展排期
+- 由项目经理统一完整版本最终验收口径与老板演示顺序
+- 将 `app.py` 侧边栏旧文案 P2 记入验收后优化待办
+- 如继续推进长期完整版，优先补漏斗 / RFM mock data、真实数据库连接与平台内执行能力

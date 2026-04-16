@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 import re
 from typing import Any
 
@@ -41,6 +41,9 @@ IDENTIFIER_FIELDS = {
     "amount_field",
 }
 
+FUNNEL_STEP_IDENTIFIER_FIELDS = ("table_name", "user_id_field", "date_field")
+RFM_BIN_FIELDS = ("r_bins", "f_bins", "m_bins")
+
 
 class ValidationError(ValueError):
     """Raised when user input cannot safely enter the generator pipeline."""
@@ -73,7 +76,10 @@ class InputValidator:
         self._validate_date_range(normalized)
         self._validate_start_end_dates(normalized)
         self._validate_filter_conditions(normalized)
-        self._validate_steps(normalized)
+        self._validate_window_days(normalized)
+        self._validate_funnel_steps(normalized)
+        self._validate_analysis_date(normalized)
+        self._validate_rfm_bins(normalized)
         return normalized
 
     def _validate_required_fields(
@@ -226,50 +232,126 @@ class InputValidator:
         if filter_conditions is None:
             parameters["filter_conditions"] = []
             return
+        parameters["filter_conditions"] = self._normalize_filter_conditions_list(
+            filter_conditions,
+            container_name="Parameter 'filter_conditions'",
+        )
+
+    def _validate_window_days(self, parameters: dict[str, Any]) -> None:
+        window_days = parameters.get("window_days")
+        if window_days is None:
+            parameters["window_days"] = 7
+            return
+
+        if isinstance(window_days, bool) or not isinstance(window_days, int) or window_days <= 0:
+            raise ValidationError("Parameter 'window_days' must be a positive integer.")
+        parameters["window_days"] = window_days
+
+    def _validate_funnel_steps(self, parameters: dict[str, Any]) -> None:
+        steps = parameters.get("steps")
+        if steps is None:
+            return
+        if not isinstance(steps, list) or len(steps) < 2:
+            raise ValidationError("Parameter 'steps' must be a list with at least two step objects.")
+
+        normalized_steps: list[dict[str, Any]] = []
+        seen_names: set[str] = set()
+        for index, step in enumerate(steps, start=1):
+            if not isinstance(step, dict) or not step:
+                raise ValidationError("Each funnel step must be an object with at least step_name.")
+
+            step_name = step.get("step_name")
+            if not isinstance(step_name, str) or not step_name.strip():
+                raise ValidationError(f"Funnel step #{index} requires a non-empty 'step_name'.")
+
+            normalized_name = step_name.strip()
+            if normalized_name in seen_names:
+                raise ValidationError(f"Funnel step names must be unique. Duplicate: {normalized_name}")
+            seen_names.add(normalized_name)
+
+            normalized_step: dict[str, Any] = {
+                "step_name": normalized_name,
+                "filter_conditions": [],
+            }
+
+            for field_name in FUNNEL_STEP_IDENTIFIER_FIELDS:
+                field_value = step.get(field_name)
+                if field_value is not None:
+                    normalized_step[field_name] = self._normalize_identifier(
+                        f"steps[{index}].{field_name}",
+                        field_value,
+                    )
+
+            if "filter_conditions" in step:
+                normalized_step["filter_conditions"] = self._normalize_filter_conditions_list(
+                    step["filter_conditions"],
+                    container_name=f"Step #{index} filter_conditions",
+                )
+
+            normalized_steps.append(normalized_step)
+
+        parameters["steps"] = normalized_steps
+
+    def _validate_analysis_date(self, parameters: dict[str, Any]) -> None:
+        analysis_date = parameters.get("analysis_date")
+        if analysis_date is None:
+            parameters["analysis_date"] = date.today().isoformat()
+            return
+
+        if self._is_empty_value(analysis_date):
+            raise ValidationError("Parameter 'analysis_date' cannot be blank.")
+        self._parse_iso_date("analysis_date", analysis_date)
+        parameters["analysis_date"] = analysis_date.strip()
+
+    def _validate_rfm_bins(self, parameters: dict[str, Any]) -> None:
+        for field_name in RFM_BIN_FIELDS:
+            value = parameters.get(field_name)
+            if value is None:
+                parameters[field_name] = 5
+                continue
+            if isinstance(value, bool) or not isinstance(value, int) or value < 2:
+                raise ValidationError(
+                    f"Parameter '{field_name}' must be an integer greater than or equal to 2."
+                )
+            parameters[field_name] = value
+
+    def _normalize_filter_conditions_list(
+        self,
+        filter_conditions: Any,
+        *,
+        container_name: str,
+    ) -> list[dict[str, Any]]:
         if not isinstance(filter_conditions, list):
-            raise ValidationError("Parameter 'filter_conditions' must be a list of condition objects.")
+            raise ValidationError(f"{container_name} must be a list of condition objects.")
 
         normalized_conditions: list[dict[str, Any]] = []
         for index, condition in enumerate(filter_conditions, start=1):
             if not isinstance(condition, dict) or not condition:
                 raise ValidationError(
-                    f"Filter condition #{index} must be an object with field, operator, and value."
+                    f"{container_name} item #{index} must be an object with field, operator, and value."
                 )
 
             field = condition.get("field")
             operator = condition.get("operator")
             if self._is_empty_value(field) or self._is_empty_value(operator) or "value" not in condition:
                 raise ValidationError(
-                    f"Filter condition #{index} requires field, operator, and value."
+                    f"{container_name} item #{index} requires field, operator, and value."
                 )
 
+            normalized_operator = self._normalize_operator(operator)
             normalized_conditions.append(
                 {
-                    "field": self._normalize_identifier("filter_conditions.field", field),
-                    "operator": self._normalize_operator(operator),
+                    "field": self._normalize_identifier(f"{container_name}.field", field),
+                    "operator": normalized_operator,
                     "value": self._normalize_filter_value(
                         index,
-                        self._normalize_operator(operator),
+                        normalized_operator,
                         condition["value"],
                     ),
                 }
             )
 
-        parameters["filter_conditions"] = normalized_conditions
-
-    def _validate_steps(self, parameters: dict[str, Any]) -> None:
-        steps = parameters.get("steps")
-        if steps is None:
-            return
-        if not isinstance(steps, list) or not steps:
-            raise ValidationError("Parameter 'steps' must be a non-empty list.")
-
-        normalized_steps: list[str] = []
-        for step in steps:
-            if not isinstance(step, str) or not step.strip():
-                raise ValidationError("Each funnel step must be a non-empty string.")
-            normalized_steps.append(step.strip())
-        parameters["steps"] = normalized_steps
+        return normalized_conditions
 
     def _normalize_operator(self, operator: Any) -> str:
         if not isinstance(operator, str) or not operator.strip():

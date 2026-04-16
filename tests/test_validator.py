@@ -34,6 +34,22 @@ def test_validator_requires_steps_for_funnel() -> None:
         )
 
 
+def test_validator_rejects_invalid_funnel_step_shape() -> None:
+    validator = InputValidator()
+
+    with pytest.raises(ValidationError):
+        validator.validate_request(
+            analysis_type="funnel",
+            dialect="mysql",
+            parameters={
+                "table_name": "events",
+                "user_id_field": "user_id",
+                "date_field": "event_time",
+                "steps": ["view", "purchase"],
+            },
+        )
+
+
 def test_validator_adds_default_aggregation() -> None:
     validator = InputValidator()
     parameters = validator.validate_request(
@@ -151,5 +167,41 @@ def test_validator_rejects_invalid_filter_conditions() -> None:
                 "filter_conditions": [
                     {"field": "channel", "operator": "IN", "value": []},
                 ],
+            },
+        )
+
+
+def test_validator_adds_default_rfm_analysis_date_and_bins() -> None:
+    validator = InputValidator()
+    parameters = validator.validate_request(
+        analysis_type="rfm",
+        dialect="postgresql",
+        parameters={
+            "table_name": "user_orders",
+            "user_id_field": "user_id",
+            "date_field": "order_date",
+            "amount_field": "amount",
+        },
+    )
+
+    assert parameters["analysis_date"]
+    assert parameters["r_bins"] == 5
+    assert parameters["f_bins"] == 5
+    assert parameters["m_bins"] == 5
+
+
+def test_validator_rejects_invalid_rfm_bin_value() -> None:
+    validator = InputValidator()
+
+    with pytest.raises(ValidationError):
+        validator.validate_request(
+            analysis_type="rfm",
+            dialect="mysql",
+            parameters={
+                "table_name": "user_orders",
+                "user_id_field": "user_id",
+                "date_field": "order_date",
+                "amount_field": "amount",
+                "r_bins": 1,
             },
         )

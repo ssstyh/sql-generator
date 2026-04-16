@@ -1,6 +1,4 @@
 from pathlib import Path
-
-import pytest
 from streamlit.testing.v1 import AppTest
 
 
@@ -36,6 +34,18 @@ def test_compare_example_loads_analysis_specific_state() -> None:
     assert at.session_state["compare_comparison_type"] == "yoy"
     assert at.session_state["compare_filter_field_0"] == "region"
     assert at.session_state["compare_filter_value_0"] == "APAC"
+
+
+def test_sidebar_scope_copy_matches_opened_analyses() -> None:
+    at = make_app()
+
+    markdown_values = [markdown.value for markdown in at.markdown]
+
+    assert any(
+        "已开放：趋势、同比/环比、留存、漏斗、RFM" in value
+        for value in markdown_values
+    )
+    assert not any("下一轮接入" in value for value in markdown_values)
 
 
 def test_trend_generation_renders_sql_and_parameter_summary() -> None:
@@ -98,13 +108,25 @@ def test_failed_generation_clears_previous_success_result() -> None:
     assert len(at.code) == 0
 
 
-@pytest.mark.parametrize("analysis", ["funnel", "rfm"])
-def test_unavailable_analyses_show_clear_message_and_disable_actions(analysis: str) -> None:
+def test_funnel_generation_renders_sql_and_summary() -> None:
     at = make_app()
 
-    at = at.sidebar.radio[0].set_value(analysis).run()
+    at = at.sidebar.radio[0].set_value("funnel").run()
+    at = click_button(at, label="生成 SQL")
 
-    assert any("接入中" in info.value for info in at.info)
-    action_buttons = [button for button in at.main.button if button.label in {"生成 SQL", "加载当前分析示例"}]
-    assert len(action_buttons) == 2
-    assert all(button.proto.disabled for button in action_buttons)
+    assert at.session_state["current_result"]["analysis"] == "funnel"
+    assert "STEP_ORDER" in at.code[0].value.upper()
+    assert "CONVERSION_RATE" in at.code[0].value.upper()
+    assert any("转化窗口：`7` 天" in markdown.value for markdown in at.markdown)
+
+
+def test_rfm_generation_renders_sql_and_summary() -> None:
+    at = make_app()
+
+    at = at.sidebar.radio[0].set_value("rfm").run()
+    at = click_button(at, label="生成 SQL")
+
+    assert at.session_state["current_result"]["analysis"] == "rfm"
+    assert "RFM_SCORE" in at.code[0].value.upper()
+    assert "SEGMENT_LABEL" in at.code[0].value.upper()
+    assert any("金额字段：`amount`" in markdown.value for markdown in at.markdown)

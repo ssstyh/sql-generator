@@ -97,6 +97,8 @@ class SQLGenerator:
             "trend": self._build_trend_context,
             "compare": self._build_compare_context,
             "retention": self._build_retention_context,
+            "funnel": self._build_funnel_context,
+            "rfm": self._build_rfm_context,
         }
 
         builder = context_builders.get(analysis_type)
@@ -172,13 +174,114 @@ class SQLGenerator:
                     end_date=parameters.get("end_date"),
                 ),
                 "retention_day_expressions": {
-                    day: self._add_days_expression("fa.cohort_date", day, dialect)
+                    day: self._add_days_expression(
+                        "fa.cohort_date",
+                        day,
+                        dialect,
+                        cast_to_date=True,
+                    )
                     for day in parameters["retention_days"]
                 },
                 "max_retention_date_expression": self._add_days_expression(
                     "fa.cohort_date",
                     max_retention_day,
                     dialect,
+                    cast_to_date=True,
+                ),
+            }
+        )
+        return context
+
+    def _build_funnel_context(self, parameters: dict[str, Any], dialect: str) -> dict[str, Any]:
+        context = dict(parameters)
+        funnel_steps: list[dict[str, Any]] = []
+        common_filters = parameters.get("filter_conditions", [])
+
+        for index, step in enumerate(parameters["steps"], start=1):
+            step_table = step.get("table_name", parameters["table_name"])
+            step_user_id = step.get("user_id_field", parameters["user_id_field"])
+            step_date_field = step.get("date_field", parameters["date_field"])
+            previous_result_cte = None if index == 1 else f"step_{index - 1}_users"
+            funnel_steps.append(
+                {
+                    "step_order": index,
+                    "step_name": step["step_name"],
+                    "step_name_literal": self._render_literal(step["step_name"]),
+                    "source_cte_name": f"step_{index}_source",
+                    "result_cte_name": f"step_{index}_users",
+                    "table_name": step_table,
+                    "user_id_field": step_user_id,
+                    "date_field": step_date_field,
+                    "where_clause": self._build_where_clause(
+                        date_field=step_date_field,
+                        dialect=dialect,
+                        filter_conditions=[*common_filters, *step.get("filter_conditions", [])],
+                        date_range=parameters.get("date_range"),
+                    ),
+                    "previous_result_cte_name": previous_result_cte,
+                    "window_end_expression": (
+                        self._add_days_expression("prev.step_time", parameters["window_days"], dialect)
+                        if previous_result_cte
+                        else None
+                    ),
+                }
+            )
+
+        context.update(
+            {
+                "analysis_label": "Funnel Analysis",
+                "comment_lines": self._build_comment_lines(
+                    analysis_type="funnel",
+                    parameters=parameters,
+                ),
+                "funnel_steps": funnel_steps,
+            }
+        )
+        return context
+
+    def _build_rfm_context(self, parameters: dict[str, Any], dialect: str) -> dict[str, Any]:
+        context = dict(parameters)
+        analysis_date_literal = self._render_literal(parameters["analysis_date"])
+        r_high_threshold = max(2, parameters["r_bins"] - 1)
+        f_high_threshold = max(2, parameters["f_bins"] - 1)
+        m_high_threshold = max(2, parameters["m_bins"] - 1)
+        context.update(
+            {
+                "analysis_label": "RFM Analysis",
+                "comment_lines": self._build_comment_lines(
+                    analysis_type="rfm",
+                    parameters=parameters,
+                ),
+                "activity_date_expression": self._build_activity_date_expression(
+                    parameters["date_field"],
+                    dialect,
+                ),
+                "analysis_date_literal": analysis_date_literal,
+                "where_clause": self._build_where_clause(
+                    date_field=parameters["date_field"],
+                    dialect=dialect,
+                    filter_conditions=parameters.get("filter_conditions", []),
+                    end_date=parameters["analysis_date"],
+                ),
+                "recency_expression": self._build_recency_expression(
+                    analysis_date_literal,
+                    dialect,
+                ),
+                "r_score_expression": (
+                    f"{parameters['r_bins']} + 1 - NTILE({parameters['r_bins']}) "
+                    "OVER (ORDER BY recency_days ASC, user_id ASC)"
+                ),
+                "f_score_expression": (
+                    f"NTILE({parameters['f_bins']}) OVER (ORDER BY frequency_value ASC, user_id ASC)"
+                ),
+                "m_score_expression": (
+                    f"NTILE({parameters['m_bins']}) OVER (ORDER BY monetary_value ASC, user_id ASC)"
+                ),
+                "rfm_score_expression": "CONCAT(r_score, f_score, m_score)",
+                "segment_case_sql": self._build_rfm_segment_case_sql(
+                    r_high_threshold=r_high_threshold,
+                    f_high_threshold=f_high_threshold,
+                    m_high_threshold=m_high_threshold,
                 ),
             }
         )
@@ -190,7 +293,27 @@ class SQLGenerator:
         analysis_type: str,
         parameters: dict[str, Any],
     ) -> list[str]:
-        if analysis_type == "trend":
+        if analysis_type == "funnel":
+            lines = [
+                f"description: ordered funnel with {len(parameters['steps'])} steps",
+                f"window_days: {parameters['window_days']}",
+                "step_names: " + ", ".join(step["step_name"] for step in parameters["steps"]),
+            ]
+            if parameters.get("date_range"):
+                lines.append(
+                    "date_range: "
+                    f"{parameters['date_range']['start']} ~ {parameters['date_range']['end']}"
+                )
+        elif analysis_type == "rfm":
+            lines = [
+                "description: user-level recency, frequency, and monetary scoring",
+                f"analysis_date: {parameters['analysis_date']}",
+                (
+                    "bins: "
+                    f"r={parameters['r_bins']}, f={parameters['f_bins']}, m={parameters['m_bins']}"
+                ),
+            ]
+        elif analysis_type == "trend":
             lines = [
                 f"说明: 输出 {parameters['granularity']} 粒度趋势指标",
                 f"聚合方式: {parameters['aggregation']}",
@@ -248,6 +371,54 @@ class SQLGenerator:
         if aggregation == "count_distinct":
             return f"COUNT(DISTINCT {metric_field})"
         return f"{aggregation.upper()}({metric_field})"
+
+    def _build_recency_expression(self, analysis_date_literal: str, dialect: str) -> str:
+        if dialect == "mysql":
+            return f"DATEDIFF({analysis_date_literal}, MAX(order_date))"
+        return f"({analysis_date_literal}::date - MAX(order_date))"
+
+    def _build_rfm_segment_case_sql(
+        self,
+        *,
+        r_high_threshold: int,
+        f_high_threshold: int,
+        m_high_threshold: int,
+    ) -> str:
+        return "\n".join(
+            [
+                "CASE",
+                (
+                    f"  WHEN r_score >= {r_high_threshold} AND f_score >= {f_high_threshold} "
+                    f"AND m_score >= {m_high_threshold} THEN 'champions'"
+                ),
+                (
+                    f"  WHEN r_score >= {r_high_threshold} AND f_score >= {f_high_threshold} "
+                    f"AND m_score < {m_high_threshold} THEN 'loyal_customers'"
+                ),
+                (
+                    f"  WHEN r_score >= {r_high_threshold} AND f_score < {f_high_threshold} "
+                    f"AND m_score >= {m_high_threshold} THEN 'big_spenders'"
+                ),
+                (
+                    f"  WHEN r_score >= {r_high_threshold} AND f_score < {f_high_threshold} "
+                    f"AND m_score < {m_high_threshold} THEN 'potential_loyalists'"
+                ),
+                (
+                    f"  WHEN r_score < {r_high_threshold} AND f_score >= {f_high_threshold} "
+                    f"AND m_score >= {m_high_threshold} THEN 'at_risk_vips'"
+                ),
+                (
+                    f"  WHEN r_score < {r_high_threshold} AND f_score >= {f_high_threshold} "
+                    f"AND m_score < {m_high_threshold} THEN 'needs_attention'"
+                ),
+                (
+                    f"  WHEN r_score < {r_high_threshold} AND f_score < {f_high_threshold} "
+                    f"AND m_score >= {m_high_threshold} THEN 'one_time_big_spenders'"
+                ),
+                "  ELSE 'hibernating'",
+                "END",
+            ]
+        )
 
     def _build_where_clause(
         self,
@@ -307,10 +478,20 @@ class SQLGenerator:
             return f"({rendered_values})"
         raise TypeError(f"Unsupported literal value: {value!r}")
 
-    def _add_days_expression(self, expression: str, days: int, dialect: str) -> str:
+    def _add_days_expression(
+        self,
+        expression: str,
+        days: int,
+        dialect: str,
+        *,
+        cast_to_date: bool = False,
+    ) -> str:
         if dialect == "mysql":
             return f"DATE_ADD({expression}, INTERVAL {days} DAY)"
-        return f"({expression} + INTERVAL '{days} day')::date"
+        base_expression = f"({expression} + INTERVAL '{days} day')"
+        if cast_to_date:
+            return f"{base_expression}::date"
+        return base_expression
 
     def _add_years_expression(self, expression: str, years: int, dialect: str) -> str:
         if dialect == "mysql":
