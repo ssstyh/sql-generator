@@ -1,7 +1,7 @@
 ﻿# Implementation Plan: Phase 14 完整版本最终验收与收口
 
 ## Objective
-在 QA 已确认完整版本功能复验通过的前提下，由项目经理统一输出完整版本的最终验收结论、老板演示口径和后续优化待办，完成本轮项目收口。
+在 QA 已确认完整版本功能复验通过的前提下，由项目经理统一输出完整版本的最终验收结论、老板演示口径和后续增强规划，完成本轮项目收口。
 
 ## Context
 - Triggered by: [员工/05_测试工程师_QA/Phase13完整版本功能复验完成总结.md](/E:/sql-generator/员工/05_测试工程师_QA/Phase13完整版本功能复验完成总结.md)
@@ -10,10 +10,8 @@
   - `python -m pytest` -> `46 passed`
   - `python -c "import app; print('app import ok')"` -> `app import ok`
   - QA 结论：完整版本功能复验通过
-  - 非阻塞问题：`app.py:737-738` 侧边栏“本轮范围”文案仍停留在旧口径
 
 ## Open Questions
-- 是否需要把侧边栏旧文案作为验收后优化待办单独安排
 - 漏斗 / RFM 的 mock data 验证包是否进入后续增强阶段
 - 后续是否继续推进真实数据库连接与平台内执行能力
 
@@ -41,14 +39,12 @@
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
 | 老板把“完整版本可阶段验收”误解为“所有长期能力都已完成” | Medium | Medium | 在 README 与总结里明确当前边界 |
-| 非阻塞 P2 文案问题在演示时造成口径混乱 | Medium | Low | 标记为验收后优化待办，单独说明 |
 | 团队把当前完成状态误解为已包含真实数据库接入和平台内执行 | Medium | Medium | 在最终结论中继续保留范围说明 |
 
 ## Acceptance Criteria
 - 项目经理给出完整版本可阶段验收的明确结论
 - README / ROADMAP / SESSION / architecture / 项目完成总结口径一致
 - 下一位执行人切回项目经理自身做最终收口
-- 非阻塞 P2 被记录为后续优化项，不影响当前验收
 
 ## Estimation Summary
 
